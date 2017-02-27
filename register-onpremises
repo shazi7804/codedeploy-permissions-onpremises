@@ -1,0 +1,75 @@
+#!/bin/bash
+#
+# Program: CodeDeploy register with On-Premises
+# Description: CodeDeploy register On-Premises and Tags
+
+if [ -e config.ini ]; then
+  source config.ini
+  if [ -e .acl ]; then
+    source .acl
+  else
+    # get account number
+    AccountNumber=$(aws sts get-caller-identity --output text --query 'Account')
+  fi
+else
+  echo "Can not find \'config.ini\'"
+  exit 1
+fi
+
+
+register_onpremises() {
+  Instance="$1"
+  InstanceName="${ProjectName}-${Instance}"
+  InstanceTag="Key=${ProjectName},Value=${Instance}"
+  RoleSession_ONPREMISES="${ProjectName}-${Instance}"
+
+  # generate the temporary credentials
+  echo "Info: generate Role STS session \"${RoleSession_ONPREMISES}\""
+  aws sts assume-role --role-arn arn:aws:iam::${AccountNumber}:role/${RoleName_ONPREMISES} --role-session-name $RoleSession_ONPREMISES
+  if [ $? -eq 0 ]; then
+    echo "Info: Generate session successful, Role STS: \"${RoleSession_ONPREMISES}\""
+  else
+    echo "Error: Generate session failed."
+    exit 1
+  fi
+
+
+  echo "Info: Use the session \"${RoleSessionName}\" to register on-premises"
+  aws deploy register-on-premises-instance --instance-name $InstanceName --iam-session-arn arn:aws:sts::${AccountNumber}:assumed-role/${RoleName_ONPREMISES}/${RoleSession_ONPREMISES}
+  if [ $? -eq 0 ]; then
+    echo "Info: Register instance $InstanceName sucessful"
+  else
+    echo "Error: Instance $InstanceName register failed."
+    exit 1
+  fi
+
+  echo -n "Info: Verify instance on-premises ... "
+  aws deploy batch-get-on-premises-instances --instance-names $InstanceName &> /dev/null
+  if [ $? -eq 0 ]; then
+    echo "OK"
+  else
+    echo "Fail !!"
+    exit 1
+  fi
+
+  echo "Info: Add tags to $InstanceName"
+  aws deploy add-tags-to-on-premises-instances --instance-names $InstanceName --tags $InstanceTag
+  if [ $? -eq 0 ]; then
+    echo "Info: Add tags successful."
+  else
+    echo "Error: Add tags Failed."
+    exit 1
+  fi
+}
+
+if [ -n $OnPremises_Server ] ; then
+  for (( i = 0; i < ${#OnPremises_Server[@]}; i++ )); do
+    echo "Info: Register OnPremises ${OnPremises_Server[i]}"
+    aws deploy get-on-premises-instance --instance-name ${ProjectName}-${OnPremises_Server[i]} &>/dev/null
+    if [ $? -eq 0 ]; then
+      echo "Info: OnPremises ${OnPremises_Server[i]} already register."
+    else
+      register_onpremises ${OnPremises_Server[i]}
+    fi
+  done
+fi

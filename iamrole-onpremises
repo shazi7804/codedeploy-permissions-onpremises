@@ -1,0 +1,65 @@
+#!/bin/bash
+#
+# Program: CodeDeploy register with On-Premises
+# Description: CodeDeploy create Role(IAM) and Bucket(S3) with On-Premises
+
+RoleTrustfile="trust-policy-onpremise.json"
+RolePolciyfile="role-policy.json"
+if [ -e config.ini ]; then
+  source config.ini
+  if [ -e .acl ]; then
+    source .acl
+  else
+    # get account number
+    AccountNumber=$(aws sts get-caller-identity --output text --query 'Account')
+  fi
+else
+  echo "Can not find \'config.ini\'"
+  exit 1
+fi
+
+echo "Info: Create IAM Role \"$RoleName_ONPREMISES\" with On-Premises."
+aws iam get-role --role-name $RoleName_ONPREMISES &> /dev/null
+if [ $? -eq 0 ]; then
+  echo "Error: IAM Role \"$RoleName_ONPREMISES\" is already exists, please go to IAM Role check"
+  exit 1
+fi
+
+tee $RoleTrustfile <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": {
+    "Effect": "Allow",
+    "Principal": {"AWS": "arn:aws:iam::$AccountNumber:root"},
+    "Action": "sts:AssumeRole"
+  }
+}
+EOF
+aws iam create-role --role-name $RoleName_ONPREMISES --assume-role-policy-document file://$RoleTrustfile &>/dev/null
+
+tee $RolePolciyfile <<EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "s3:GetObject",
+                "s3:GetObjectVersion",
+                "s3:ListBucket"
+            ],
+            "Effect": "Allow",
+            "Resource": "arn:aws:s3:::codeploy-*"
+        }
+    ]
+}
+EOF
+aws iam put-role-policy --role-name $RoleName_ONPREMISES --policy-name $RolePolicy_ONPREMISES --policy-document file://$RolePolciyfile
+aws iam create-instance-profile --instance-profile-name $RoleProfileName_ONPREMISES
+aws iam add-role-to-instance-profile --role-name $RoleName_ONPREMISES --instance-profile-name $RoleProfileName_ONPREMISES
+if [ $? -eq 0 ]; then
+  echo "Info: Create IAM Role \"$RoleName_ONPREMISES\" successful."
+else
+  echo "Error: Create IAM Role \"$RoleName_ONPREMISES\" failed."
+  exit 1
+fi
+rm $RoleTrustfile $RolePolciyfile

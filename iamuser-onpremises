@@ -1,0 +1,70 @@
+#!/bin/bash
+#
+# Program: CodeDeploy register with On-Premises
+# Description: CodeDeploy create USER(IAM) with On-Premises
+
+IamPolicyfile=iam-policy-onpremises.json
+
+if [ -e config.ini ]; then
+  source config.ini
+  if [ -e .acl ]; then
+    source .acl
+  else
+    # get account number
+    AccountNumber=$(aws sts get-caller-identity --output text --query 'Account')
+  fi
+else
+  echo "Can not find \'config.ini\'"
+  exit 1
+fi
+
+echo "Info: Create IAM user \"$IAMUSER_ONPREMISES\" with On-Premises."
+
+# create group
+aws iam get-group --group-name $IAMGROUP &>/dev/null
+if [ $? -eq 0 ]; then
+  echo "Info: IAM Group \"$IAMGROUP\" is already exists, skip create group."
+else
+  aws iam create-group --group-name $IAMGROUP
+fi
+
+# create user
+aws iam get-user --user-name $IAMUSER_ONPREMISES &>/dev/null
+if [ $? -eq 0 ]; then
+  echo "Info: IAM user \"$IAMUSER_ONPREMISES\" is already exists, skip create user."
+else
+  aws iam create-user --user-name $IAMUSER_ONPREMISES &>/dev/null
+fi
+
+# join user from group
+aws iam list-groups-for-user --user-name $IAMUSER_ONPREMISES | grep $IAMGROUP &>/dev/null
+if [ $? -eq 0 ]; then
+  echo "Info: IAM user \"$IAMUSER_ONPREMISES\" already exists in \"$IAMGROUP\", skip join group."
+else
+  aws iam add-user-to-group --user-name $IAMUSER_ONPREMISES --group-name $IAMGROUP
+fi
+
+echo "Info: IAM user \"$IAMUSER_ONPREMISES\" lnline policy."
+# add policy
+tee $IamPolicyfile <<EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "sts:AssumeRole"
+            ],
+            "Resource": "arn:aws:iam::$AccountNumber:role/Role-onpremises"
+        }
+    ]
+}
+EOF
+aws iam put-user-policy --user-name $IAMUSER_ONPREMISES --policy-name $IAMPolicy_ONPREMISES --policy-document file://$IamPolicyfile
+if [ $? -eq 0 ]; then
+  echo "Info: Create IAM user \"$IAMUSER_ONPREMISES\" successful and join the $IAMGROUP group."
+else
+  echo "Error: Create IAM user \"$IAMUSER_ONPREMISES\" failed."
+  exit 1
+fi
+rm $IamPolicyfile

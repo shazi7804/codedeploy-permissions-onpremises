@@ -1,0 +1,50 @@
+#!/bin/bash
+#
+# Program: CodeDeploy register with On-Premises
+# Description: CodeDeploy gen
+
+if [ -e config.ini ]; then
+  source config.ini
+  if [ -e .acl ]; then
+    source .acl
+  else
+    # get account number
+    AccountNumber=$(aws sts get-caller-identity --output text --query 'Account')
+  fi
+else
+  echo "Can not find \'config.ini\'"
+  exit 1
+fi
+
+# create codedeploy application
+echo "Info: Create codedeploy application."
+aws deploy list-applications | grep $CodeDeploy_Appname 
+if [ $? -eq 0  ]; then
+  echo "Info: CodeDeploy application is already exists, skip create application."
+else  
+  aws deploy create-application --application-name $CodeDeploy_Appname --region $Region
+fi
+
+# create codedeploy deployment_group
+for (( i = 0; i < ${#CodeDeploy_Deployment_Group[@]}; i++ )); do
+  echo "Info: Create codedeploy ${CodeDeploy_Deployment_Group[i]} deployment_group."
+  aws deploy get-deployment-group \
+            --application-name $CodeDeploy_Appname \
+            --deployment-group-name ${CodeDeploy_Deployment_Group[i]} &>/dev/null
+  if [ $? = 0 ]; then
+    echo "Info: CodeDeploy deployment_group is already exists, skip create deployment_group."
+  else
+    aws deploy create-deployment-group \
+            --application-name $CodeDeploy_Appname \
+            --deployment-config-name $CodeDeploy_Deployment_Config \
+            --deployment-group-name ${CodeDeploy_Deployment_Group[i]} \
+            --service-role-arn arn:aws:iam::${AccountNumber}:role/$RoleName_CodeDeploy \
+            --region $Region
+  fi
+done
+if [ $? = 0 ]; then
+  echo "Info: Create CodeDeploy successful."
+else
+  echo "Error: Create CodeDeploy failed."
+fi
+
