@@ -99,7 +99,7 @@ In this example you will create the following permissions：
 
 - Register On Premises at for CodeDeploy
     
-    - default register dev, stage instance
+    - default register `dev`, `stage` instance
 
 ## Auto Install
 

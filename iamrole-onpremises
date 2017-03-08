@@ -21,7 +21,7 @@ fi
 echo "Info: Create IAM Role \"$RoleName_ONPREMISES\" with On-Premises."
 aws iam get-role --role-name $RoleName_ONPREMISES &> /dev/null
 if [ $? -eq 0 ]; then
-  echo "Error: IAM Role \"$RoleName_ONPREMISES\" is already exists, please go to IAM Role check"
+  echo "Info: IAM Role \"$RoleName_ONPREMISES\" is already exists, skip create onpremises role."
   exit 1
 fi
 
@@ -48,7 +48,7 @@ tee $RolePolciyfile <<EOF
                 "s3:ListBucket"
             ],
             "Effect": "Allow",
-            "Resource": "arn:aws:s3:::codeploy-*"
+            "Resource": "arn:aws:s3:::codedeploy-*"
         }
     ]
 }
@@ -62,4 +62,5 @@ else
   echo "Error: Create IAM Role \"$RoleName_ONPREMISES\" failed."
   exit 1
 fi
-rm $RoleTrustfile $RolePolciyfile
+rm $RoleTrustfile $RolePolciyfiloleTrustfile
+

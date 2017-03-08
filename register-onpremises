@@ -21,7 +21,7 @@ register_onpremises() {
   Instance="$1"
   InstanceName="${ProjectName}-${Instance}"
   InstanceTag="Key=${ProjectName},Value=${Instance}"
-  RoleSession_ONPREMISES="${ProjectName}-${Instance}"
+  RoleSession_ONPREMISES="${ProjectName}-session-${Instance}"
 
   # generate the temporary credentials
   echo "Info: generate Role STS session \"${RoleSession_ONPREMISES}\""
@@ -34,10 +34,10 @@ register_onpremises() {
   fi
 
 
-  echo "Info: Use the session \"${RoleSessionName}\" to register on-premises"
+  echo "Info: Use the session \"${RoleSession_ONPREMISES}\" to register on-premises"
   aws deploy register-on-premises-instance --instance-name $InstanceName --iam-session-arn arn:aws:sts::${AccountNumber}:assumed-role/${RoleName_ONPREMISES}/${RoleSession_ONPREMISES}
   if [ $? -eq 0 ]; then
-    echo "Info: Register instance $InstanceName sucessful"
+    echo "Info: Register instance $InstanceName successful"
   else
     echo "Error: Instance $InstanceName register failed."
     exit 1

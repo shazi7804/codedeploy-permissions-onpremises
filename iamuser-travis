@@ -60,7 +60,6 @@ tee $IamPolicyfile <<EOF
     ]
 }
 EOF
-aws iam attach-user-policy --user-name $IAMUSER_TRAVIS --policy-arn arn:aws:iam::aws:policy/$IAMAttachPolicy_TRAVIS
 aws iam put-user-policy --user-name $IAMUSER_TRAVIS --policy-name $IAMPolicy_TRAVIS --policy-document file://$IamPolicyfile
 if [ $? -eq 0 ]; then
   echo "Info: Create IAM user \"$IAMUSER_TRAVIS\" successful and join the $IAMGROUP group."

@@ -71,11 +71,13 @@ if [ -e .acl ]; then
   rm .acl
 fi
 
+echo ""
+echo "##############################################################"
+
 # generate travisci user access key, limit only one access key.
 echo "Info: generate IAM User \"$IAMUSER_TRAVIS\" access key"
 if aws iam list-access-keys --user-name $IAMUSER_TRAVIS | grep AccessKeyId; then
-  echo "Warning: Limit a user can only one access key, please go to IAM user \"$IAMUSER_TRAVIS\" check."
-  exit 1
+  echo "Warning: Limit \"$IAMUSER_TRAVIS\" user can only one access key, please go to IAM user check."
 else
   aws iam create-access-key --user-name $IAMUSER_TRAVIS
   if [ $? -eq 0 ]; then
@@ -87,12 +89,10 @@ else
     exit 1
   fi
 fi
-
 # generate on-premises user access key, limit only one access key.
 echo "Info: generate IAM User \"$IAMUSER_ONPREMISES\" access key"
 if aws iam list-access-keys --user-name $IAMUSER_ONPREMISES | grep AccessKeyId; then
-  echo "Warning: Limit a user can only one access key, please go to IAM user \"$IAMUSER_ONPREMISES\" check."
-  exit 1
+  echo "Warning: Limit \"$IAMUSER_TRAVIS\" user can only one access key, please go to IAM user check."
 else
   aws iam create-access-key --user-name $IAMUSER_ONPREMISES
   if [ $? -eq 0 ]; then
@@ -107,15 +107,22 @@ fi
 
 # On-Premises deploy information
 echo ""
-echo "##########################################################"
-echo ""
-echo "region = $Region"
-echo "role_onpremises_arn = arn:aws:iam::$AccountNumber:role/$RoleName_ONPREMISES"
-echo ""
+echo "======= codedeploy.onpremises.yml ======="
 for (( i = 0; i < ${#OnPremises_Server[@]}; i++ )); do
   echo "## ${OnPremises_Server[i]}"
-  echo "iam_session_arn = $(aws deploy get-on-premises-instance --instance-name ${ProjectName}-session-${OnPremises_Server[i]} | grep iamSessionArn | awk -F'"' '{print $4}')"
+  echo ---
+  echo "iam_session_arn: $(aws deploy get-on-premises-instance --instance-name ${ProjectName}-${OnPremises_Server[i]} | grep iamSessionArn | awk -F'"' '{print $4}')"
+  echo "aws_credentials_file: /etc/codedeploy-agent/conf/credentials"
+  echo "region: $Region"
+  echo ""
 done
-echo ""
+echo "======= codedeploy-session-helper ======="
+for (( i = 0; i < ${#OnPremises_Server[@]}; i++ )); do
+  echo "## ${OnPremises_Server[i]}"
+  echo "RoleARN=$(aws iam get-role --role-name ${RoleName_ONPREMISES} | grep Arn | awk -F'"' '{print $4}')"
+  echo "RoleSession=${ProjectName}-session- ${OnPremises_Server[i]}"
+  echo "CredentialsFile=/etc/codedeploy-agent/conf/credentials"
+  echo ""
+done
 echo "You need to deploy the information to the On-Premises !!"
 echo ""
