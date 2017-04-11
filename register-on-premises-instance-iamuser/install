@@ -36,9 +36,10 @@ echo "##############"
 echo "Region = $Region"
 echo "S3 bucket-name = $BucketName"
 echo "IAM User(TravisCI) = $IAMUSER_TRAVIS"
-echo "IAM User(OnPremises) = $IAMUSER_ONPREMISES"
+for (( i = 0; i < ${#OnPremises_Server[@]}; i++ )); do
+  echo "IAM User(OnPremises) = $IAMUSER_ONPREMISES-${OnPremises_Server[i]}"
+done
 echo "IAM Group = $IAMGROUP"
-echo "IAM Role(OnPremises) = $RoleName_ONPREMISES"
 echo "IAM Role(CodeDeploy) = $RoleName_CodeDeploy"
 echo "CodeDeploy application = $CodeDeploy_Appname"
 echo "CodeDeploy Deployment Config = $CodeDeploy_Deployment_Config"
@@ -54,14 +55,17 @@ read -n1 -r -p "press any key to continue ..."
 AccountNumber=$(aws sts get-caller-identity --output text --query 'Account')
 echo "AccountNumber=$AccountNumber" > .acl
 
-if [ -e iamuser-travis ] && [ -e iamuser-onpremises ] && [ -e iamrole-onpremises ] && [ -e iamrole-codedeploy ] && [ -e codedeploy ] && [ -e s3bucket ]; then
+if [ -e iamuser-travis ] && [ -e iamuser-onpremises ] && [ -e iamrole-codedeploy ] && [ -e codedeploy ] && [ -e s3bucket ]; then
   ./s3bucket
   ./iamuser-travis
-  ./iamuser-onpremises
+  for (( i = 0; i < ${#OnPremises_Server[@]}; i++ )); do
+    ./iamuser-onpremises ${OnPremises_Server[i]}
+  done
   ./iamrole-codedeploy
-  ./iamrole-onpremises
   ./codedeploy
-  ./register-onpremises
+  for (( i = 0; i < ${#OnPremises_Server[@]}; i++ )); do
+    ./register-onpremises ${OnPremises_Server[i]}
+  done
 else
   echo "Oops !! lost program ... please contact the system administrator"
 fi
@@ -90,39 +94,30 @@ else
   fi
 fi
 # generate on-premises user access key, limit only one access key.
-echo "Info: generate IAM User \"$IAMUSER_ONPREMISES\" access key"
-if aws iam list-access-keys --user-name $IAMUSER_ONPREMISES | grep AccessKeyId; then
-  echo "Warning: Limit \"$IAMUSER_TRAVIS\" user can only one access key, please go to IAM user check."
-else
-  aws iam create-access-key --user-name $IAMUSER_ONPREMISES
-  if [ $? -eq 0 ]; then
-    echo "Create access key sucessful !!"
-    echo "You can get the \"AccessKeyId\" and \"SecretAccessKey\" to AWS CLI at On-Premises"
-    echo ""
+for (( i = 0; i < ${#OnPremises_Server[@]}; i++ )); do
+  echo "Info: generate IAM User \"$IAMUSER_ONPREMISES-${OnPremises_Server[i]}\" access key"
+  if aws iam list-access-keys --user-name $IAMUSER_ONPREMISES-${OnPremises_Server[i]} | grep AccessKeyId; then
+    echo "Warning: Limit \"$IAMUSER_TRAVIS-${OnPremises_Server[i]}\" user can only one access key, please go to IAM user check."
   else
-    echo "Create access key failed."
-    exit 1
+    aws iam create-access-key --user-name $IAMUSER_ONPREMISES-${OnPremises_Server[i]}
+    if [ $? -eq 0 ]; then
+      echo "Create access key sucessful !!"
+      echo "You can get the \"AccessKeyId\" and \"SecretAccessKey\" to AWS CLI at On-Premises"
+      echo ""
+    else
+      echo "Create access key failed."
+      exit 1
+    fi
   fi
-fi
-
+done
 # On-Premises deploy information
 echo ""
 echo "======= codedeploy.onpremises.yml ======="
-for (( i = 0; i < ${#OnPremises_Server[@]}; i++ )); do
-  echo "## ${OnPremises_Server[i]}"
-  echo ---
-  echo "iam_session_arn: $(aws deploy get-on-premises-instance --instance-name ${ProjectName}-${OnPremises_Server[i]} | grep iamSessionArn | awk -F'"' '{print $4}')"
-  echo "aws_credentials_file: /etc/codedeploy-agent/conf/credentials"
-  echo "region: $Region"
-  echo ""
-done
-echo "======= codedeploy-session-helper ======="
-for (( i = 0; i < ${#OnPremises_Server[@]}; i++ )); do
-  echo "## ${OnPremises_Server[i]}"
-  echo "RoleARN=$(aws iam get-role --role-name ${RoleName_ONPREMISES} | grep Arn | awk -F'"' '{print $4}')"
-  echo "RoleSession=${ProjectName}-session- ${OnPremises_Server[i]}"
-  echo "CredentialsFile=/etc/codedeploy-agent/conf/credentials"
-  echo ""
-done
+echo ---
+echo "aws_access_key: onpremises user access key"
+echo "aws_secret_access_key: onpremises user secret key"
+echo "iam_user_arn: onpremises user arn"
+echo "region: $Region"
+echo ""
 echo "You need to deploy the information to the On-Premises !!"
 echo ""

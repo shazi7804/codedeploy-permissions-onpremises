@@ -1,0 +1,54 @@
+#!/bin/bash
+#
+# Program: CodeDeploy register with On-Premises
+# Description: CodeDeploy register On-Premises and Tags
+
+if [ -e config.ini ]; then
+  source config.ini
+  if [ -e .acl ]; then
+    source .acl
+  else
+    # get account number
+    AccountNumber=$(aws sts get-caller-identity --output text --query 'Account')
+  fi
+else
+  echo "Can not find \'config.ini\'"
+  exit 1
+fi
+
+
+RegisterOnpremises() {
+  ONPREMISES_SERVER="$1"
+  REGISTER_ONPREMISES_SERVER="${ProjectName}-${ONPREMISES_SERVER}"
+  ONPREMISES_TAG="Key=Name,Value=${REGISTER_ONPREMISES_SERVER}"
+
+  echo "Info: Register OnPremises ${ONPREMISES_SERVER}"
+  aws deploy get-on-premises-instance --instance-name ${REGISTER_ONPREMISES_SERVER} &>/dev/null
+  if [ $? -eq 0 ]; then
+    echo "Info: OnPremises ${REGISTER_ONPREMISES_SERVER} already register."
+    exit 0
+  else
+    ONPREMISES_USER_ARN=$(aws iam get-user --user-name ${IAMUSER_ONPREMISES}-${ONPREMISES_SERVER} --query "User.Arn" --output text)
+    aws deploy register-on-premises-instance --instance-name ${REGISTER_ONPREMISES_SERVER} --iam-user-arn ${ONPREMISES_USER_ARN}
+  fi
+
+  echo -n "Info: Verify instance on-premises ... "
+  aws deploy batch-get-on-premises-instances --instance-names $REGISTER_ONPREMISES_SERVER &> /dev/null
+  if [ $? -eq 0 ]; then
+    echo "OK"
+  else
+    echo "Fail !!"
+    exit 1
+  fi
+
+  echo "Info: Add tags to $REGISTER_ONPREMISES_SERVER"
+  aws deploy add-tags-to-on-premises-instances --instance-names $REGISTER_ONPREMISES_SERVER --tags $ONPREMISES_TAG
+  if [ $? -eq 0 ]; then
+    echo "Info: Add tags successful."
+  else
+    echo "Error: Add tags Failed."
+    exit 1
+  fi
+}
+
+RegisterOnpremises $1

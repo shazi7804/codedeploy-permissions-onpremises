@@ -1,0 +1,31 @@
+#!/bin/bash
+#
+# Program: CodeDeploy register with On-Premises
+# Description: CodeDeploy create s3 bucket
+
+if [ -e config.ini ]; then
+  source config.ini
+else
+  echo "Can not find \'config.ini\'"
+fi
+
+echo "Info: Create S3 bucket \"$BucketName\" with On-Premises."
+
+if aws s3api list-buckets | grep $BucketName &> /dev/null; then
+  echo "Info: S3 bucket \"$BucketName\" is already exists, skip create s3 bucket."
+else
+  # create s3 bucket
+  if [ $Region = 'us-east-1' ]; then
+    aws s3api create-bucket --bucket $BucketName --region $Region
+  else
+    aws s3api create-bucket --bucket $BucketName --region $Region --create-bucket-configuration LocationConstraint=$Region
+  fi
+
+  aws s3 ls $BucketName &> /dev/null
+  if [ $? = 0 ]; then
+    echo "Create S3 bucket \"$BucketName\" successful."
+  else
+    echo Create S3 bucket failed.
+    exit 1
+  fi
+fi

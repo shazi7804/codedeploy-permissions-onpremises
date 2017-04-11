@@ -1,0 +1,47 @@
+#!/bin/bash
+#
+# Program: CodeDeploy register with On-Premises
+# Description: CodeDeploy create Role(IAM) with CodeDeploy service
+
+RoleTrustPolicy_CodeDeploy="role-codeploy-trust-policy.json"
+if [ -e config.ini ]; then
+  source config.ini
+else
+  echo "Can not find \'config.ini\'"
+  exit 1
+fi
+
+echo "Info: Create IAM Role \"$RoleName_CodeDeploy\" for CodeDeploy service."
+aws iam get-role --role-name $RoleName_CodeDeploy &> /dev/null
+if [ $? -eq 0 ]; then
+  echo "Info: IAM Role \"$RoleName_CodeDeploy\" is already exists, skip create codedeploy role"
+  exit 1
+fi
+
+tee $RoleTrustPolicy_CodeDeploy <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "codedeploy.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+EOF
+aws iam create-role --role-name $RoleName_CodeDeploy --assume-role-policy-document file://$RoleTrustPolicy_CodeDeploy &>/dev/null
+
+aws iam attach-role-policy --role-name $RoleName_CodeDeploy --policy-arn arn:aws:iam::aws:policy/service-role/$RoleAttachPolicy_CodeDeploy
+aws iam create-instance-profile --instance-profile-name $RoleProfileName_CodeDeploy
+aws iam add-role-to-instance-profile --role-name $RoleName_CodeDeploy --instance-profile-name $RoleProfileName_CodeDeploy
+if [ $? -eq 0 ]; then
+  echo "Info: Create IAM Role \"$RoleName_CodeDeploy\" successful."
+else
+  echo "Error: Create IAM Role \"$RoleName_CodeDeploy\" failed."
+  exit 1
+fi
+rm $RoleTrustPolicy_CodeDeploy

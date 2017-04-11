@@ -1,0 +1,78 @@
+#!/bin/bash
+#
+# Program: CodeDeploy register with On-Premises
+# Description: CodeDeploy create USER(IAM) with On-Premises
+
+IamPolicyfile=iam-policy-onpremises.json
+
+if [ -e config.ini ]; then
+  source config.ini
+  if [ -e .acl ]; then
+    source .acl
+  else
+    # get account number
+    AccountNumber=$(aws sts get-caller-identity --output text --query 'Account')
+  fi
+else
+  echo "Can not find \'config.ini\'"
+  exit 1
+fi
+
+CreateIAMUser(){
+  ONPREMISES_SERVER=$1
+  IAMUSER_ONPREMISES_SERVER=${IAMUSER_ONPREMISES}-${ONPREMISES_SERVER}
+  echo "Info: Create IAM user \"$IAMUSER_ONPREMISES_SERVER\" with On-Premises."
+
+  # create group
+  aws iam get-group --group-name $IAMGROUP &>/dev/null
+  if [ $? -eq 0 ]; then
+    echo "Info: IAM Group \"$IAMGROUP\" is already exists, skip create group."
+  else
+    aws iam create-group --group-name $IAMGROUP
+  fi
+
+  # create user
+  aws iam get-user --user-name $IAMUSER_ONPREMISES_SERVER &>/dev/null
+  if [ $? -eq 0 ]; then
+    echo "Info: IAM user \"$IAMUSER_ONPREMISES_SERVER\" is already exists, skip create user."
+  else
+    aws iam create-user --user-name $IAMUSER_ONPREMISES_SERVER &>/dev/null
+  fi
+
+  # join user from group
+  aws iam list-groups-for-user --user-name $IAMUSER_ONPREMISES_SERVER | grep $IAMGROUP &>/dev/null
+  if [ $? -eq 0 ]; then
+    echo "Info: IAM user \"$IAMUSER_ONPREMSES_SERVER\" already exists in \"$IAMGROUP\", skip join group."
+  else
+    aws iam add-user-to-group --user-name $IAMUSER_ONPREMISES_SERVER --group-name $IAMGROUP
+  fi
+
+  echo "Info: IAM user \"$IAMUSER_ONPREMISES_SERVER\" lnline policy."
+  # add policy
+  tee $IamPolicyfile <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": [
+        "s3:GetObject",
+        "s3:GetObjectVersion",
+        "s3:ListBucket"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:s3:::codedeploy-${ProjectName}/*"
+    }
+  ]
+}
+EOF
+  aws iam put-user-policy --user-name $IAMUSER_ONPREMISES_SERVER --policy-name $IAMPolicy_ONPREMISES --policy-document file://$IamPolicyfile
+  if [ $? -eq 0 ]; then
+    echo "Info: Create IAM user \"$IAMUSER_ONPREMISES_SERVER\" successful and join the $IAMGROUP group."
+  else
+    echo "Error: Create IAM user \"$IAMUSER_ONPREMISES_SERVER\" failed."
+    exit 1
+  fi
+  rm $IamPolicyfile
+}
+
+CreateIAMUser $1

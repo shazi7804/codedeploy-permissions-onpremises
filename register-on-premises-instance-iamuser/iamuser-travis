@@ -1,0 +1,70 @@
+#!/bin/bash
+#
+# Program: CodeDeploy register with On-Premises
+# Description: CodeDeploy create USER(IAM) with Travis CI
+
+IamPolicyfile=iam-policy-travis.json
+
+if [ -e config.ini ]; then
+  source config.ini
+else
+  echo "Can not find \'config.ini\'"
+  exit 1
+fi
+
+echo "Info: Create IAM user \"$IAMUSER_TRAVIS\" with On-Premises."
+
+# create group
+aws iam get-group --group-name $IAMGROUP &>/dev/null
+if [ $? -eq 0 ]; then
+  echo "Info: IAM Group \"$IAMGROUP\" is already exists, skip create group."
+else
+  aws iam create-group --group-name $IAMGROUP
+fi
+
+# create user
+aws iam get-user --user-name $IAMUSER_TRAVIS &>/dev/null
+if [ $? -eq 0 ]; then
+  echo "Info: IAM user \"$IAMUSER_TRAVIS\" is already exists, skip create user."
+else
+  aws iam create-user --user-name $IAMUSER_TRAVIS &>/dev/null
+fi
+
+# join user from group
+aws iam list-groups-for-user --user-name $IAMUSER_TRAVIS | grep $IAMGROUP &>/dev/null
+if [ $? -eq 0 ]; then
+  echo "Info: IAM user \"$IAMUSER_TRAVIS\" already exists in \"$IAMGROUP\", skip join group."
+else
+  aws iam add-user-to-group --user-name $IAMUSER_TRAVIS --group-name $IAMGROUP
+fi
+
+echo "Info: IAM user \"$IAMUSER_TRAVIS\" attach policy \"$IAMAttachPolicy_TRAVIS\""
+aws iam attach-user-policy --user-name $IAMUSER_TRAVIS --policy-arn arn:aws:iam::aws:policy/${IAMAttachPolicy_TRAVIS}
+
+echo "Info: IAM user \"$IAMUSER_TRAVIS\" lnline policy"
+# add policy
+tee $IamPolicyfile <<EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "Stmt1487528506000",
+            "Effect": "Allow",
+            "Action": [
+                "s3:*"
+            ],
+            "Resource": [
+                "arn:aws:s3:::codedeploy-${ProjectName}/*"
+            ]
+        }
+    ]
+}
+EOF
+aws iam put-user-policy --user-name $IAMUSER_TRAVIS --policy-name $IAMPolicy_TRAVIS --policy-document file://$IamPolicyfile
+if [ $? -eq 0 ]; then
+  echo "Info: Create IAM user \"$IAMUSER_TRAVIS\" successful and join the $IAMGROUP group."
+else
+  echo "Error: Create IAM user \"$IAMUSER_TRAVIS\" failed."
+  exit 1
+fi
+rm $IamPolicyfile
