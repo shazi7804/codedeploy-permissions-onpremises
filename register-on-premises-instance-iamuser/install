@@ -114,7 +114,7 @@ done
 echo ""
 echo "======= codedeploy.onpremises.yml ======="
 echo ---
-echo "aws_access_key: onpremises user access key"
+echo "aws_access_key_id: onpremises user access key"
 echo "aws_secret_access_key: onpremises user secret key"
 echo "iam_user_arn: onpremises user arn"
 echo "region: $Region"
