@@ -16,10 +16,10 @@ else
   exit 1
 fi
 
-
 RegisterOnpremises() {
   ONPREMISES_SERVER="$1"
-  REGISTER_ONPREMISES_SERVER="${ProjectName}-${ONPREMISES_SERVER}"
+  RANDOM_STR=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 13 ; echo '')
+  REGISTER_ONPREMISES_SERVER="${ProjectName}-${ONPREMISES_SERVER}-${RANDOM_STR}"
   ONPREMISES_TAG="Key=Name,Value=${REGISTER_ONPREMISES_SERVER}"
 
   echo "Info: Register OnPremises ${ONPREMISES_SERVER}"
