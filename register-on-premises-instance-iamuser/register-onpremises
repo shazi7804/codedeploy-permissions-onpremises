@@ -18,7 +18,7 @@ fi
 
 RegisterOnpremises() {
   ONPREMISES_SERVER="$1"
-  RANDOM_STR=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 13 ; echo '')
+  RANDOM_STR=$(cat /dev/urandom | env LC_CTYPE=C tr -cd 'a-f0-9' | head -c 32)
   REGISTER_ONPREMISES_SERVER="${ProjectName}-${ONPREMISES_SERVER}-${RANDOM_STR}"
   ONPREMISES_TAG="Key=Name,Value=${REGISTER_ONPREMISES_SERVER}"
 
