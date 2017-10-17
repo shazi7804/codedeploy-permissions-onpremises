@@ -15,31 +15,31 @@ fi
 echo "Info: Create IAM user \"$IAMUSER_TRAVIS\" with On-Premises."
 
 # create group
-aws iam get-group --group-name $IAMGROUP &>/dev/null
+aws iam get-group --group-name $IAMGROUP --profile $Profile &>/dev/null
 if [ $? -eq 0 ]; then
   echo "Info: IAM Group \"$IAMGROUP\" is already exists, skip create group."
 else
-  aws iam create-group --group-name $IAMGROUP
+  aws iam create-group --group-name $IAMGROUP --profile $Profile
 fi
 
 # create user
-aws iam get-user --user-name $IAMUSER_TRAVIS &>/dev/null
+aws iam get-user --user-name $IAMUSER_TRAVIS --profile $Profile &>/dev/null
 if [ $? -eq 0 ]; then
   echo "Info: IAM user \"$IAMUSER_TRAVIS\" is already exists, skip create user."
 else
-  aws iam create-user --user-name $IAMUSER_TRAVIS &>/dev/null
+  aws iam create-user --user-name $IAMUSER_TRAVIS --profile $Profile &>/dev/null
 fi
 
 # join user from group
-aws iam list-groups-for-user --user-name $IAMUSER_TRAVIS | grep $IAMGROUP &>/dev/null
+aws iam list-groups-for-user --user-name $IAMUSER_TRAVIS --profile $Profile | grep $IAMGROUP &>/dev/null
 if [ $? -eq 0 ]; then
   echo "Info: IAM user \"$IAMUSER_TRAVIS\" already exists in \"$IAMGROUP\", skip join group."
 else
-  aws iam add-user-to-group --user-name $IAMUSER_TRAVIS --group-name $IAMGROUP
+  aws iam add-user-to-group --user-name $IAMUSER_TRAVIS --group-name $IAMGROUP --profile $Profile
 fi
 
 echo "Info: IAM user \"$IAMUSER_TRAVIS\" attach policy \"$IAMAttachPolicy_TRAVIS\""
-aws iam attach-user-policy --user-name $IAMUSER_TRAVIS --policy-arn arn:aws:iam::aws:policy/${IAMAttachPolicy_TRAVIS}
+aws iam attach-user-policy --user-name $IAMUSER_TRAVIS --policy-arn arn:aws:iam::aws:policy/${IAMAttachPolicy_TRAVIS} --profile $Profile
 
 echo "Info: IAM user \"$IAMUSER_TRAVIS\" lnline policy"
 # add policy
@@ -60,7 +60,7 @@ tee $IamPolicyfile <<EOF
     ]
 }
 EOF
-aws iam put-user-policy --user-name $IAMUSER_TRAVIS --policy-name $IAMPolicy_TRAVIS --policy-document file://$IamPolicyfile
+aws iam put-user-policy --user-name $IAMUSER_TRAVIS --policy-name $IAMPolicy_TRAVIS --policy-document file://$IamPolicyfile --profile $Profile
 if [ $? -eq 0 ]; then
   echo "Info: Create IAM user \"$IAMUSER_TRAVIS\" successful and join the $IAMGROUP group."
 else

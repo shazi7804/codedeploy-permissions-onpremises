@@ -52,7 +52,7 @@ echo ""
 read -n1 -r -p "press any key to continue ..."
 
 # get account number
-AccountNumber=$(aws sts get-caller-identity --output text --query 'Account')
+AccountNumber=$(aws sts get-caller-identity --output text --query 'Account' --profile $Profile)
 echo "AccountNumber=$AccountNumber" > .acl
 
 if [ -e iamuser-travis ] && [ -e iamuser-onpremises ] && [ -e iamrole-codedeploy ] && [ -e codedeploy ] && [ -e s3bucket ]; then
@@ -80,10 +80,10 @@ echo "##############################################################"
 
 # generate travisci user access key, limit only one access key.
 echo "Info: generate IAM User \"$IAMUSER_TRAVIS\" access key"
-if aws iam list-access-keys --user-name $IAMUSER_TRAVIS | grep AccessKeyId; then
+if aws iam list-access-keys --user-name $IAMUSER_TRAVIS --profile $Profile | grep AccessKeyId; then
   echo "Warning: Limit \"$IAMUSER_TRAVIS\" user can only one access key, please go to IAM user check."
 else
-  aws iam create-access-key --user-name $IAMUSER_TRAVIS
+  aws iam create-access-key --user-name $IAMUSER_TRAVIS --profile $Profile
   if [ $? -eq 0 ]; then
     echo "Create access key sucessful !!"
     echo "You can get the \"AccessKeyId\" and \"SecretAccessKey\"(need encrypt) to Travis CI"
@@ -96,10 +96,10 @@ fi
 # generate on-premises user access key, limit only one access key.
 for (( i = 0; i < ${#OnPremises_Server[@]}; i++ )); do
   echo "Info: generate IAM User \"$IAMUSER_ONPREMISES-${OnPremises_Server[i]}\" access key"
-  if aws iam list-access-keys --user-name $IAMUSER_ONPREMISES-${OnPremises_Server[i]} | grep AccessKeyId; then
+  if aws iam list-access-keys --user-name $IAMUSER_ONPREMISES-${OnPremises_Server[i]} --profile $Profile | grep AccessKeyId; then
     echo "Warning: Limit \"$IAMUSER_TRAVIS-${OnPremises_Server[i]}\" user can only one access key, please go to IAM user check."
   else
-    aws iam create-access-key --user-name $IAMUSER_ONPREMISES-${OnPremises_Server[i]}
+    aws iam create-access-key --user-name $IAMUSER_ONPREMISES-${OnPremises_Server[i]} --profile $Profile
     if [ $? -eq 0 ]; then
       echo "Create access key sucessful !!"
       echo "You can get the \"AccessKeyId\" and \"SecretAccessKey\" to AWS CLI at On-Premises"

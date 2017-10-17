@@ -75,6 +75,7 @@ In this example you will create the following permissions：
 ### Customize
 
 - ProjectName = Set your project name.
+- ENV = Deploy the environments.
 - OnPremises_Server = Register On Premises instance name
 
 ### Global

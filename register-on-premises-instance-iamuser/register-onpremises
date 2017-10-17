@@ -9,7 +9,7 @@ if [ -e config.ini ]; then
     source .acl
   else
     # get account number
-    AccountNumber=$(aws sts get-caller-identity --output text --query 'Account')
+    AccountNumber=$(aws sts get-caller-identity --output text --query 'Account' --profile $Profile)
   fi
 else
   echo "Can not find \'config.ini\'"
@@ -23,17 +23,17 @@ RegisterOnpremises() {
   ONPREMISES_TAG="Key=Name,Value=${REGISTER_ONPREMISES_SERVER}"
 
   echo "Info: Register OnPremises ${ONPREMISES_SERVER}"
-  aws deploy get-on-premises-instance --instance-name ${REGISTER_ONPREMISES_SERVER} &>/dev/null
+  aws deploy get-on-premises-instance --instance-name ${REGISTER_ONPREMISES_SERVER} --profile $Profile &>/dev/null
   if [ $? -eq 0 ]; then
     echo "Info: OnPremises ${REGISTER_ONPREMISES_SERVER} already register."
     exit 0
   else
-    ONPREMISES_USER_ARN=$(aws iam get-user --user-name ${IAMUSER_ONPREMISES}-${ONPREMISES_SERVER} --query "User.Arn" --output text)
-    aws deploy register-on-premises-instance --instance-name ${REGISTER_ONPREMISES_SERVER} --iam-user-arn ${ONPREMISES_USER_ARN}
+    ONPREMISES_USER_ARN=$(aws iam get-user --user-name ${IAMUSER_ONPREMISES}-${ONPREMISES_SERVER} --query "User.Arn" --output text --profile $Profile)
+    aws deploy register-on-premises-instance --instance-name ${REGISTER_ONPREMISES_SERVER} --iam-user-arn ${ONPREMISES_USER_ARN} --profile $Profile
   fi
 
   echo -n "Info: Verify instance on-premises ... "
-  aws deploy batch-get-on-premises-instances --instance-names $REGISTER_ONPREMISES_SERVER &> /dev/null
+  aws deploy batch-get-on-premises-instances --instance-names $REGISTER_ONPREMISES_SERVER --profile $Profile &> /dev/null
   if [ $? -eq 0 ]; then
     echo "OK"
   else
@@ -42,7 +42,7 @@ RegisterOnpremises() {
   fi
 
   echo "Info: Add tags to $REGISTER_ONPREMISES_SERVER"
-  aws deploy add-tags-to-on-premises-instances --instance-names $REGISTER_ONPREMISES_SERVER --tags $ONPREMISES_TAG
+  aws deploy add-tags-to-on-premises-instances --instance-names $REGISTER_ONPREMISES_SERVER --tags $ONPREMISES_TAG --profile $Profile
   if [ $? -eq 0 ]; then
     echo "Info: Add tags successful."
   else

@@ -11,7 +11,7 @@ if [ -e config.ini ]; then
     source .acl
   else
     # get account number
-    AccountNumber=$(aws sts get-caller-identity --output text --query 'Account')
+    AccountNumber=$(aws sts get-caller-identity --output text --query 'Account' --profile ${Profile})
   fi
 else
   echo "Can not find \'config.ini\'"
@@ -24,27 +24,27 @@ CreateIAMUser(){
   echo "Info: Create IAM user \"$IAMUSER_ONPREMISES_SERVER\" with On-Premises."
 
   # create group
-  aws iam get-group --group-name $IAMGROUP &>/dev/null
+  aws iam get-group --group-name $IAMGROUP --profile $Profile &>/dev/null
   if [ $? -eq 0 ]; then
     echo "Info: IAM Group \"$IAMGROUP\" is already exists, skip create group."
   else
-    aws iam create-group --group-name $IAMGROUP
+    aws iam create-group --group-name $IAMGROUP --profile $Profile
   fi
 
   # create user
-  aws iam get-user --user-name $IAMUSER_ONPREMISES_SERVER &>/dev/null
+  aws iam get-user --user-name $IAMUSER_ONPREMISES_SERVER --profile $Profile &>/dev/null
   if [ $? -eq 0 ]; then
     echo "Info: IAM user \"$IAMUSER_ONPREMISES_SERVER\" is already exists, skip create user."
   else
-    aws iam create-user --user-name $IAMUSER_ONPREMISES_SERVER &>/dev/null
+    aws iam create-user --user-name $IAMUSER_ONPREMISES_SERVER --profile $Profile &>/dev/null
   fi
 
   # join user from group
-  aws iam list-groups-for-user --user-name $IAMUSER_ONPREMISES_SERVER | grep $IAMGROUP &>/dev/null
+  aws iam list-groups-for-user --user-name $IAMUSER_ONPREMISES_SERVER --profile $Profile | grep $IAMGROUP  &>/dev/null
   if [ $? -eq 0 ]; then
     echo "Info: IAM user \"$IAMUSER_ONPREMSES_SERVER\" already exists in \"$IAMGROUP\", skip join group."
   else
-    aws iam add-user-to-group --user-name $IAMUSER_ONPREMISES_SERVER --group-name $IAMGROUP
+    aws iam add-user-to-group --user-name $IAMUSER_ONPREMISES_SERVER --group-name $IAMGROUP --profile $Profile
   fi
 
   echo "Info: IAM user \"$IAMUSER_ONPREMISES_SERVER\" lnline policy."
@@ -60,12 +60,12 @@ CreateIAMUser(){
         "s3:ListBucket"
       ],
       "Effect": "Allow",
-      "Resource": "arn:aws:s3:::codedeploy-${ProjectName}/*"
+      "Resource": "arn:aws:s3:::${BucketName}/*"
     }
   ]
 }
 EOF
-  aws iam put-user-policy --user-name $IAMUSER_ONPREMISES_SERVER --policy-name $IAMPolicy_ONPREMISES --policy-document file://$IamPolicyfile
+  aws iam put-user-policy --user-name $IAMUSER_ONPREMISES_SERVER --policy-name $IAMPolicy_ONPREMISES --policy-document file://$IamPolicyfile --profile $Profile
   if [ $? -eq 0 ]; then
     echo "Info: Create IAM user \"$IAMUSER_ONPREMISES_SERVER\" successful and join the $IAMGROUP group."
   else

@@ -11,17 +11,17 @@ fi
 
 echo "Info: Create S3 bucket \"$BucketName\" with On-Premises."
 
-if aws s3api list-buckets | grep $BucketName &> /dev/null; then
+if aws s3api list-buckets --profile $Profile | grep $BucketName  &> /dev/null; then
   echo "Info: S3 bucket \"$BucketName\" is already exists, skip create s3 bucket."
 else
   # create s3 bucket
   if [ $Region = 'us-east-1' ]; then
-    aws s3api create-bucket --bucket $BucketName --region $Region
+    aws s3api create-bucket --bucket $BucketName --region $Region --profile $Profile
   else
-    aws s3api create-bucket --bucket $BucketName --region $Region --create-bucket-configuration LocationConstraint=$Region
+    aws s3api create-bucket --bucket $BucketName --region $Region --create-bucket-configuration LocationConstraint=$Region --profile $Profile
   fi
 
-  aws s3 ls $BucketName &> /dev/null
+  aws s3 ls $BucketName --profile $Profile &> /dev/null
   if [ $? = 0 ]; then
     echo "Create S3 bucket \"$BucketName\" successful."
   else
